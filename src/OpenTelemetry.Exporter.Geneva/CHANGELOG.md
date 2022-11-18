@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-## 1.3.0-beta.3
+## 1.4.0-beta.4
 
 Released 2022-November-18
 
