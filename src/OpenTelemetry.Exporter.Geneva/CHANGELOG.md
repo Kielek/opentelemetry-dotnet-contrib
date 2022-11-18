@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.3.0-beta.3
+
+Released 2022-November-18
+
 * Supports `OpenTelemetry.Extensions.Hosting` based configuration for
 `GenevaMetricExporter`.
 [397](https://github.com/open-telemetry/opentelemetry-dotnet-contrib/pull/397)
