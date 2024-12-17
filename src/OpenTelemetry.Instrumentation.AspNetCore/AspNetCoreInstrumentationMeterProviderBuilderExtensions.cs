@@ -45,10 +45,11 @@ public static class AspNetCoreInstrumentationMeterProviderBuilderExtensions
     {
         return builder
              .AddMeter("Microsoft.AspNetCore.Hosting")
-             .AddMeter("Microsoft.AspNetCore.Server.Kestrel")
-             .AddMeter("Microsoft.AspNetCore.Http.Connections")
              .AddMeter("Microsoft.AspNetCore.Routing")
              .AddMeter("Microsoft.AspNetCore.Diagnostics")
-             .AddMeter("Microsoft.AspNetCore.RateLimiting");
+             .AddMeter("Microsoft.AspNetCore.RateLimiting")
+             .AddMeter("Microsoft.AspNetCore.HeaderParsing")
+             .AddMeter("Microsoft.AspNetCore.Server.Kestrel")
+             .AddMeter("Microsoft.AspNetCore.Http.Connections");
     }
 }
