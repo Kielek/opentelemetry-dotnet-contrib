@@ -48,7 +48,7 @@ jobs:
         exclude:
         - os: ubuntu-22.04
           version: net462
-        - os: macos-latest
+        - os: macos-15
           version: net462
 
     runs-on: ${{ matrix.os }}
