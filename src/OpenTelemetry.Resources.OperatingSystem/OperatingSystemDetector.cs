@@ -19,6 +19,7 @@ internal sealed class OperatingSystemDetector : IResourceDetector
     private const string RegistryKey = @"SOFTWARE\Microsoft\Windows NT\CurrentVersion";
 #if NET
     private const string KernelOsRelease = "/proc/sys/kernel/osrelease";
+
     private static readonly string[] DefaultEtcOsReleasePaths =
     [
         "/etc/os-release",
