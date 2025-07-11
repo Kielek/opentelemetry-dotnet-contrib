@@ -9,6 +9,7 @@ namespace OpenTelemetry.Instrumentation.Owin;
 
 /// <summary>
 /// Options for requests instrumentation.
+/// TestChanges
 /// </summary>
 public class OwinInstrumentationOptions
 {
