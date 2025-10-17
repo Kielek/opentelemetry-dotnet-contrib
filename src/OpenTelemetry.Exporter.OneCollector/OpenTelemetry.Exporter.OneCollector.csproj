@@ -8,7 +8,7 @@
     <MinVerTagPrefix>Exporter.OneCollector-</MinVerTagPrefix>
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
     <!-- Note: SYSLIB1100;SYSLIB1101 - Configuration.Binder: Can't create
-    instance and unsupported type are being emitted by config source generator
+    instance and unsupported type ardummy changee being emitted by config source generator
     processing OneCollectorExporterTransportOptions. It would be preferable to suppress
     this at the call site but there is a bug. This could possibly be cleaned up
     in the future (hopefully .NET 9) see https://github.com/dotnet/runtime/issues/92509 -->
