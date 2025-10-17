@@ -77,6 +77,12 @@ internal sealed class WcfInstrumentationEventSource : EventSource
         this.WriteEvent(EventIds.AspNetReflectionFailedToBind, exception);
     }
 
+    [Event(111, Message = "Custom message: {0}.", Level = EventLevel.Warning)]
+    public void CustomMessage(string customMessage)
+    {
+        this.WriteEvent(111, customMessage);
+    }
+
     private class EventIds
     {
         public const int RequestIsFilteredOut = 1;

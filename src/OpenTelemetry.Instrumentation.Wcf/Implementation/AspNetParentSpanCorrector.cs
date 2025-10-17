@@ -29,19 +29,39 @@ internal static class AspNetParentSpanCorrector
     private static readonly ReflectedInfo? ReflectedValues = Initialize();
     private static readonly PropertyFetcher<object> RequestFetcher = new("Request");
     private static readonly PropertyFetcher<NameValueCollection> HeadersFetcher = new("Headers");
-    private static bool isRegistered;
+    private static int isRegistered;
 
     public static void Register()
     {
-        if (!isRegistered && ReflectedValues != null)
+        WcfInstrumentationEventSource.Log.CustomMessage("XXXX AspNetParentSpanCorrector.Register started");
+        try
         {
-            ReflectedValues.SubscribeToOnRequestStartedCallback();
-            isRegistered = true;
+            WcfInstrumentationEventSource.Log.CustomMessage("XXXX AspNetParentSpanCorrector.Register isRegistered" + isRegistered);
+            WcfInstrumentationEventSource.Log.CustomMessage("XXXX AspNetParentSpanCorrector.Register ReflectedValues != null " + (ReflectedValues != null));
+
+            if (Interlocked.CompareExchange(ref isRegistered, 1, 0) == 0)
+            {
+                if (ReflectedValues != null)
+                {
+                    WcfInstrumentationEventSource.Log.CustomMessage("XXXX AspNetParentSpanCorrector.Register before ReflectedValues.SubscribeToOnRequestStartedCallback()");
+                    ReflectedValues.SubscribeToOnRequestStartedCallback();
+                    WcfInstrumentationEventSource.Log.CustomMessage("XXXX AspNetParentSpanCorrector.Register after ReflectedValues.SubscribeToOnRequestStartedCallback()");
+                }
+            }
         }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            WcfInstrumentationEventSource.Log.CustomMessage("XXXX AspNetParentSpanCorrector.Register exception " + e);
+            throw;
+        }
+
+        WcfInstrumentationEventSource.Log.CustomMessage("XXXX AspNetParentSpanCorrector.Register finished");
     }
 
     private static void OnRequestStarted(Activity activity, object context)
     {
+        WcfInstrumentationEventSource.Log.CustomMessage("XXXX OnRequestStarted started");
         var request = RequestFetcher.Fetch(context);
         var headers = HeadersFetcher.Fetch(request);
 
@@ -61,11 +81,16 @@ internal static class AspNetParentSpanCorrector
         }
         finally
         {
+            WcfInstrumentationEventSource.Log.CustomMessage("XXXX finally executing");
             if (headersWereOriginallyReadOnly)
             {
                 ReflectedValues.SetHeadersReadOnly(headers, true);
             }
+
+            WcfInstrumentationEventSource.Log.CustomMessage("XXXX finally executed");
         }
+
+        WcfInstrumentationEventSource.Log.CustomMessage("XXXX OnRequestStarted finished");
     }
 
     private static ReflectedInfo? Initialize()
@@ -103,73 +128,90 @@ internal static class AspNetParentSpanCorrector
         // this method effectively generates this lambda:
         // () => TelemetryHttpModule.Options.OnRequestStartedCallback = CreateCombinedCallback(TelemetryHttpModule.Options.OnRequestStartedCallback)
         // The callback signature is Func<HttpContextBase, ActivityContext, Activity?>
+        WcfInstrumentationEventSource.Log.CustomMessage("XXXX GenerateSubscribeLambda started");
 
-        var telemetryHttpModuleType = Type.GetType(TelemetryHttpModuleTypeName, true);
-        var telemetryHttpModuleOptionsType = Type.GetType(TelemetryHttpModuleOptionsTypeName, true);
-        var onRequestStartedProp = telemetryHttpModuleOptionsType?.GetProperty("OnRequestStartedCallback") ?? throw new NotSupportedException("TelemetryHttpModuleOptions.OnRequestStartedCallback property not found");
+        Func<object> xxxx;
+        try
+        {
+            var telemetryHttpModuleType = Type.GetType(TelemetryHttpModuleTypeName, true);
+            var telemetryHttpModuleOptionsType = Type.GetType(TelemetryHttpModuleOptionsTypeName, true);
+            var onRequestStartedProp = telemetryHttpModuleOptionsType?.GetProperty("OnRequestStartedCallback") ??
+                                       throw new NotSupportedException(
+                                           "TelemetryHttpModuleOptions.OnRequestStartedCallback property not found");
 
-        // Get the parameter types from the callback property type itself to avoid hardcoded type loading
-        var callbackType = onRequestStartedProp.PropertyType;
-        var invokeMethod = callbackType.GetMethod("Invoke");
-        var parameterTypes = invokeMethod!.GetParameters().Select(p => p.ParameterType).ToArray();
-        var returnType = invokeMethod.ReturnType;
+            // Get the parameter types from the callback property type itself to avoid hardcoded type loading
+            var callbackType = onRequestStartedProp.PropertyType;
+            var invokeMethod = callbackType.GetMethod("Invoke");
+            var parameterTypes = invokeMethod!.GetParameters().Select(p => p.ParameterType).ToArray();
+            var returnType = invokeMethod.ReturnType;
 
-        // Parameters for the new combined callback (use actual parameter types from the callback)
-        var httpContextParam = Expression.Parameter(parameterTypes[0], "httpContext");
-        var activityContextParam = Expression.Parameter(parameterTypes[1], "activityContext");
+            // Parameters for the new combined callback (use actual parameter types from the callback)
+            var httpContextParam = Expression.Parameter(parameterTypes[0], "httpContext");
+            var activityContextParam = Expression.Parameter(parameterTypes[1], "activityContext");
 
-        // Get the existing callback value
-        var options = Expression.Property(null, telemetryHttpModuleType, "Options");
-        var existingCallback = Expression.Property(options, onRequestStartedProp);
+            // Get the existing callback value
+            var options = Expression.Property(null, telemetryHttpModuleType, "Options");
+            var existingCallback = Expression.Property(options, onRequestStartedProp);
 
-        // Create conditional logic: if existingCallback != null, call it, otherwise return null
-        var nullCheck = Expression.NotEqual(existingCallback, Expression.Constant(null, existingCallback.Type));
+            // Create conditional logic: if existingCallback != null, call it, otherwise return null
+            var nullCheck = Expression.NotEqual(existingCallback, Expression.Constant(null, existingCallback.Type));
 
-        // Call existing callback if it exists
-        var callExistingCallback = Expression.Call(
-            existingCallback,
-            invokeMethod,
-            httpContextParam,
-            activityContextParam);
+            // Call existing callback if it exists
+            var callExistingCallback = Expression.Call(
+                existingCallback,
+                invokeMethod,
+                httpContextParam,
+                activityContextParam);
 
-        // If no existing callback, return null
-        var nullActivity = Expression.Constant(null, returnType);
+            // If no existing callback, return null
+            var nullActivity = Expression.Constant(null, returnType);
 
-        // Choose between calling existing callback or returning null
-        var activityResult = Expression.Condition(nullCheck, callExistingCallback, nullActivity);
+            // Choose between calling existing callback or returning null
+            var activityResult = Expression.Condition(nullCheck, callExistingCallback, nullActivity);
 
-        // Store the activity result in a variable
-        var activityVariable = Expression.Variable(returnType, "activity");
-        var assignActivity = Expression.Assign(activityVariable, activityResult);
+            // Store the activity result in a variable
+            var activityVariable = Expression.Variable(returnType, "activity");
+            var assignActivity = Expression.Assign(activityVariable, activityResult);
 
-        // Check if activity is not null before calling OnRequestStarted
-        var activityNotNull = Expression.NotEqual(activityVariable, Expression.Constant(null, returnType));
+            // Check if activity is not null before calling OnRequestStarted
+            var activityNotNull = Expression.NotEqual(activityVariable, Expression.Constant(null, returnType));
 
-        // Call OnRequestStarted method - convert HttpContextBase to object for compatibility
-        var onRequestStartedMethod = typeof(AspNetParentSpanCorrector).GetMethod(nameof(OnRequestStarted), BindingFlags.Static | BindingFlags.NonPublic)!;
-        var callOnRequestStarted = Expression.Call(onRequestStartedMethod, activityVariable, Expression.Convert(httpContextParam, typeof(object)));
+            // Call OnRequestStarted method - convert HttpContextBase to object for compatibility
+            var onRequestStartedMethod = typeof(AspNetParentSpanCorrector).GetMethod(nameof(OnRequestStarted), BindingFlags.Static | BindingFlags.NonPublic)!;
+            var callOnRequestStarted = Expression.Call(onRequestStartedMethod, activityVariable, Expression.Convert(httpContextParam, typeof(object)));
 
-        // Conditional call to OnRequestStarted
-        var conditionalCall = Expression.IfThen(activityNotNull, callOnRequestStarted);
+            // Conditional call to OnRequestStarted
+            var conditionalCall = Expression.IfThen(activityNotNull, callOnRequestStarted);
 
-        // Return the activity
-        var returnActivity = activityVariable;
+            // Return the activity
+            var returnActivity = activityVariable;
 
-        // Create the method body
-        var methodBody = Expression.Block(
-            [activityVariable],
-            assignActivity,
-            conditionalCall,
-            returnActivity);
+            // Create the method body
+            var methodBody = Expression.Block(
+                [activityVariable],
+                assignActivity,
+                conditionalCall,
+                returnActivity);
 
-        // Create the combined callback lambda
-        var combinedCallbackLambda = Expression.Lambda(callbackType, methodBody, httpContextParam, activityContextParam);
+            // Create the combined callback lambda
+            var combinedCallbackLambda =
+                Expression.Lambda(callbackType, methodBody, httpContextParam, activityContextParam);
 
-        // Create assignment: Options.OnRequestStartedCallback = combinedCallback
-        var callbackProperty = Expression.Property(options, onRequestStartedProp);
-        var subscribeExpression = Expression.Assign(callbackProperty, combinedCallbackLambda);
+            // Create assignment: Options.OnRequestStartedCallback = combinedCallback
+            var callbackProperty = Expression.Property(options, onRequestStartedProp);
+            var subscribeExpression = Expression.Assign(callbackProperty, combinedCallbackLambda);
 
-        return (Func<object>)Expression.Lambda(subscribeExpression).Compile();
+            xxxx = (Func<object>)Expression.Lambda(subscribeExpression).Compile();
+        }
+        catch (Exception ex)
+        {
+            WcfInstrumentationEventSource.Log.AspNetReflectionFailedToBind("XXXX exception occured while working on this " + ex);
+            xxxx = () => null!;
+        }
+
+        WcfInstrumentationEventSource.Log.CustomMessage("XXXX GenerateSubscribeLambda finished");
+
+        return xxxx;
     }
 
     private sealed class ReflectedInfo

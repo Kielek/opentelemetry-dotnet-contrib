@@ -63,6 +63,12 @@ internal sealed class AspNetInstrumentationEventSource : EventSource, IConfigura
         this.WriteEvent(5, methodName);
     }
 
+    [Event(111, Message = "Custom message: {0}.", Level = EventLevel.Warning)]
+    public void CustomMessage(string customMessage)
+    {
+        this.WriteEvent(111, customMessage);
+    }
+
     void IConfigurationExtensionsLogger.LogInvalidConfigurationValue(string key, string value)
     {
         this.InvalidConfigurationValue(key, value);

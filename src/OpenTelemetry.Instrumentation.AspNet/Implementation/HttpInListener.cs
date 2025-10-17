@@ -125,6 +125,22 @@ internal sealed class HttpInListener : IDisposable
             return null;
         }
 
+        if (activityContext == null)
+        {
+            AspNetInstrumentationEventSource.Log.CustomMessage("XXXX Activity Context is null");
+        }
+
+        if (activityContext == default)
+        {
+            AspNetInstrumentationEventSource.Log.CustomMessage("XXXX Activity Context is default");
+        }
+        else
+        {
+            AspNetInstrumentationEventSource.Log.CustomMessage("XXXX Activity Context TraceId:" + activityContext.TraceId);
+            AspNetInstrumentationEventSource.Log.CustomMessage("XXXX Activity Context SpanId:" + activityContext.SpanId);
+            AspNetInstrumentationEventSource.Log.CustomMessage("XXXX Activity Context TraceFlags:" + activityContext.TraceFlags);
+        }
+
         TagList tags = default;
 
         var request = context.Request;
