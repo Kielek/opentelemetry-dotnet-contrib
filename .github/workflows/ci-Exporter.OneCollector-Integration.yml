@@ -36,9 +36,9 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     steps:
+    - run: echo "GITHUB_REF=refs/pull/${{ github.event.pull_request.number }}/merge" >> $GITHUB_ENV
+
     - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      with:
-        ref: refs/pull/${{ github.event.pull_request.number }}/merge # Run on the merge commit once approved
 
     - name: Setup dotnet
       uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v5.0.0
