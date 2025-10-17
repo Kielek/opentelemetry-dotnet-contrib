@@ -187,7 +187,7 @@ internal static class AspNetParentSpanCorrector
             var returnActivity = activityVariable;
 
             // Get the Log instance and CustomMessage method for runtime logging
-            var logInstance = Expression.Property(null, typeof(WcfInstrumentationEventSource), "Log");
+            var logInstance = Expression.Field(null, typeof(WcfInstrumentationEventSource), "Log");
             var customMessageMethod = typeof(WcfInstrumentationEventSource).GetMethod("CustomMessage", BindingFlags.Instance | BindingFlags.Public)!;
 
             // Get ActivityContext properties for logging
