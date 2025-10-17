@@ -186,11 +186,66 @@ internal static class AspNetParentSpanCorrector
             // Return the activity
             var returnActivity = activityVariable;
 
-            // Create the method body
+            // Get the Log instance and CustomMessage method for runtime logging
+            var logInstance = Expression.Property(null, typeof(WcfInstrumentationEventSource), "Log");
+            var customMessageMethod = typeof(WcfInstrumentationEventSource).GetMethod("CustomMessage", BindingFlags.Instance | BindingFlags.Public)!;
+
+            // Get ActivityContext properties for logging
+            var activityContextTraceId = Expression.Property(activityContextParam, "TraceId");
+            var activityContextSpanId = Expression.Property(activityContextParam, "SpanId");
+            var traceIdToString = Expression.Call(activityContextTraceId, typeof(ActivityTraceId).GetMethod("ToString", Type.EmptyTypes)!);
+            var spanIdToString = Expression.Call(activityContextSpanId, typeof(ActivitySpanId).GetMethod("ToString", Type.EmptyTypes)!);
+
+            // Create logging expressions that will execute at runtime inside the generated lambda
+            var logCallbackStart = Expression.Call(logInstance, customMessageMethod, Expression.Constant("XXXX Runtime: Combined callback started"));
+
+            var logActivityContextInfo = Expression.Call(
+                logInstance,
+                customMessageMethod,
+                Expression.Call(
+                    typeof(string).GetMethod("Concat", new[] { typeof(string), typeof(string), typeof(string), typeof(string) })!,
+                    Expression.Constant("XXXX Runtime: ActivityContext - TraceId: "),
+                    traceIdToString,
+                    Expression.Constant(", SpanId: "),
+                    spanIdToString));
+
+            var logBeforeExistingCallbackCheck = Expression.Call(logInstance, customMessageMethod, Expression.Constant("XXXX Runtime: Checking if existing callback exists"));
+            var logExistingCallbackCalled = Expression.Call(logInstance, customMessageMethod, Expression.Constant("XXXX Runtime: Calling existing callback"));
+            var logNoExistingCallback = Expression.Call(logInstance, customMessageMethod, Expression.Constant("XXXX Runtime: No existing callback found"));
+            var logAfterActivityAssignment = Expression.Call(logInstance, customMessageMethod, Expression.Constant("XXXX Runtime: Activity assigned"));
+            var logCheckingActivityNotNull = Expression.Call(logInstance, customMessageMethod, Expression.Constant("XXXX Runtime: Checking if activity is not null"));
+            var logCallingOnRequestStarted = Expression.Call(logInstance, customMessageMethod, Expression.Constant("XXXX Runtime: Calling OnRequestStarted"));
+            var logActivityIsNull = Expression.Call(logInstance, customMessageMethod, Expression.Constant("XXXX Runtime: Activity is null, skipping OnRequestStarted"));
+            var logReturningActivity = Expression.Call(logInstance, customMessageMethod, Expression.Constant("XXXX Runtime: Returning activity"));
+
+            // Build enhanced conditional for existing callback with logging
+            var enhancedActivityResult = Expression.Block(
+                logBeforeExistingCallbackCheck,
+                Expression.Condition(
+                    nullCheck,
+                    Expression.Block(logExistingCallbackCalled, callExistingCallback),
+                    Expression.Block(logNoExistingCallback, nullActivity)));
+
+            var enhancedAssignActivity = Expression.Block(
+                Expression.Assign(activityVariable, enhancedActivityResult),
+                logAfterActivityAssignment);
+
+            // Build enhanced conditional for OnRequestStarted with logging
+            var enhancedConditionalCall = Expression.Block(
+                logCheckingActivityNotNull,
+                Expression.IfThenElse(
+                    activityNotNull,
+                    Expression.Block(logCallingOnRequestStarted, callOnRequestStarted),
+                    logActivityIsNull));
+
+            // Create the method body with runtime logging
             var methodBody = Expression.Block(
                 [activityVariable],
-                assignActivity,
-                conditionalCall,
+                logCallbackStart,
+                logActivityContextInfo,
+                enhancedAssignActivity,
+                enhancedConditionalCall,
+                logReturningActivity,
                 returnActivity);
 
             // Create the combined callback lambda
