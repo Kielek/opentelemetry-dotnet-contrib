@@ -151,10 +151,16 @@ internal static class AspNetParentSpanCorrector
 
             // Get the existing callback value
             var options = Expression.Property(null, telemetryHttpModuleType, "Options");
-            var existingCallback = Expression.Property(options, onRequestStartedProp);
+
+            // CRITICAL FIX: Capture the existing callback as a constant value at lambda creation time
+            // This prevents infinite recursion by storing the original callback value before assignment
+            var captureCallback = Expression.Lambda<Func<object>>(
+                Expression.Convert(Expression.Property(options, onRequestStartedProp), typeof(object))).Compile();
+            var existingCallbackValue = captureCallback();
+            var existingCallback = Expression.Constant(existingCallbackValue, callbackType);
 
             // Create conditional logic: if existingCallback != null, call it, otherwise return null
-            var nullCheck = Expression.NotEqual(existingCallback, Expression.Constant(null, existingCallback.Type));
+            var nullCheck = Expression.NotEqual(existingCallback, Expression.Constant(null, callbackType));
 
             // Call existing callback if it exists
             var callExistingCallback = Expression.Call(
@@ -197,7 +203,10 @@ internal static class AspNetParentSpanCorrector
             var spanIdToString = Expression.Call(activityContextSpanId, typeof(ActivitySpanId).GetMethod("ToString", Type.EmptyTypes)!);
 
             // Create logging expressions that will execute at runtime inside the generated lambda
-            var logCallbackStart = Expression.Call(logInstance, customMessageMethod, Expression.Constant("XXXX Runtime: Combined callback started"));
+            var logCallbackStart = Expression.Call(
+                logInstance,
+                customMessageMethod,
+                Expression.Constant($"XXXX Runtime: Combined callback started (Has existing: {existingCallbackValue != null})"));
 
             var logActivityContextInfo = Expression.Call(
                 logInstance,
