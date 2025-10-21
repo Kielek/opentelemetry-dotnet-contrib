@@ -1,0 +1,52 @@
+name: Reusable Integration Test
+
+on:
+  workflow_call:
+    inputs:
+      component:
+        description: 'Component to build and test'
+        required: true
+        type: string
+      os:
+        description: 'Operating system to run on'
+        required: true
+        type: string
+      version:
+        description: 'Framework version to test'
+        required: true
+        type: string
+      test-filter:
+        description: 'Test filter category'
+        required: true
+        type: string
+      env-var-name:
+        description: 'Environment variable name for instrumentation key'
+        required: false
+        type: string
+        default: 'INSTRUMENTATION_KEY'
+    secrets:
+      instrumentation-key:
+        description: 'Instrumentation key for testing'
+        required: false
+
+jobs:
+  build-and-test:
+    runs-on: ${{ inputs.os }}
+    steps:
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      with:
+        ref: ${{ github.event.pull_request.head.sha || github.ref }} # Run on the fork branch once approved
+
+    - name: Setup dotnet
+      uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v5.0.0
+
+    - name: dotnet restore Component.proj
+      run: dotnet restore build/Projects/Component.proj -p:BUILD_COMPONENT=${{ inputs.component }}
+
+    - name: dotnet build Component.proj
+      run: dotnet build build/Projects/Component.proj --configuration Release --no-restore -p:BUILD_COMPONENT=${{ inputs.component }}
+
+    - name: dotnet test Component.proj
+      run: dotnet test build/Projects/Component.proj --filter CategoryName=${{ inputs.test-filter }} --framework ${{ inputs.version }} --configuration Release --no-restore --no-build -p:BUILD_COMPONENT=${{ inputs.component }} --logger:"console;verbosity=detailed"
+      env:
+        ${{ inputs.env-var-name }}: ${{ secrets.instrumentation-key }}
