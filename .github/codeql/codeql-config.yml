@@ -8,3 +8,5 @@ query-filters:
   - exclude:
       id:
         - actions/untrusted-checkout
+        - actions/untrusted-checkout/high
+        - actions/untrusted-checkout/medium
