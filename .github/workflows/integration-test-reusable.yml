@@ -38,13 +38,20 @@ jobs:
   build-and-test:
     runs-on: ${{ inputs.os }}
     steps:
+    # Security: When called from pull_request_target with untrusted PR code,
+    # this checkout requires prior approval via the 'authorize' job environment.
+    # The workflow has limited permissions (contents: read) and uses persist-credentials: false
+    # to prevent credential theft.
     - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       if: inputs.checkout-ref != ''
       with:
         ref: ${{ inputs.checkout-ref }}
+        persist-credentials: false
     
     - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       if: inputs.checkout-ref == ''
+      with:
+        persist-credentials: false
 
     - name: Setup dotnet
       uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v5.0.0
