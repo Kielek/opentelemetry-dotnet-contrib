@@ -1,0 +1,11 @@
+name: "CodeQL config"
+
+queries:
+  - uses: security-and-quality
+
+# Disable specific queries
+query-filters:
+  - exclude:
+      id: gh-actions/checkout-untrusted-code
+      paths:
+        - .github/workflows/integration-test-reusable.yml
