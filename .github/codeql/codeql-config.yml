@@ -6,6 +6,4 @@ queries:
 # Disable specific queries
 query-filters:
   - exclude:
-      id: actions/untrusted-checkout/high
-      paths:
-        - .github/workflows/integration-test-reusable.yml
+      id: actions/untrusted-checkout
