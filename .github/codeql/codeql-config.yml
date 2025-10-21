@@ -6,4 +6,5 @@ queries:
 # Disable specific queries
 query-filters:
   - exclude:
-      id: actions/untrusted-checkout
+      id:
+        - actions/untrusted-checkout
