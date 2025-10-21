@@ -7,7 +7,7 @@
     <Description>An OpenTelemetry .NET exporter that sends telemetry to Microsoft OneCollector.</Description>
     <MinVerTagPrefix>Exporter.OneCollector-</MinVerTagPrefix>
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
-    <!-- Note: SYSLIB1100;SYSLIB1101 - Configuration.Binder: Can't create
+    <!-- Note: SYSLIB1100;SYSLIB1101 - test change Configuration.Binder: Can't create
     instance and unsupported type are being emitted by config source generator
     processing OneCollectorExporterTransportOptions. It would be preferable to suppress
     this at the call site but there is a bug. This could possibly be cleaned up
