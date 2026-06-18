@@ -2,6 +2,7 @@ name: Reusable Integration Test
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.sha }}-${{ inputs.component }}-${{ inputs.os }}-${{ inputs.version }}
@@ -36,6 +37,16 @@ on:
         required: false
         type: string
         default: ''
+      expected-head-sha:
+        description: 'Pull request head SHA approved for this run'
+        required: false
+        type: string
+        default: ''
+      pull-request-number:
+        description: 'Pull request number to verify before checking out approved code'
+        required: false
+        type: string
+        default: ''
     secrets:
       instrumentation-key:
         description: 'Instrumentation key for testing'
@@ -49,9 +60,35 @@ jobs:
       BUILD_COMPONENT: ${{ inputs.component }}
     steps:
     # Security: When called from pull_request_target with untrusted PR code,
-    # this checkout requires prior approval via the 'authorize' job environment.
-    # The workflow has limited permissions (contents: read) and uses persist-credentials: false
-    # to prevent credential theft.
+    # verify the approved PR head is still current before checking out the
+    # commit. The checkout ref is a SHA, so later branch mutations cannot change
+    # the code executed by this run.
+    - name: Verify approved PR head SHA
+      if: inputs.pull-request-number != '' && inputs.expected-head-sha != ''
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ github.token }}
+        EXPECTED_HEAD_SHA: ${{ inputs.expected-head-sha }}
+        PULL_REQUEST_NUMBER: ${{ inputs.pull-request-number }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+
+        $headers = @{
+          Authorization = "Bearer ${env:GH_TOKEN}"
+          Accept = "application/vnd.github+json"
+          "X-GitHub-Api-Version" = "2022-11-28"
+        }
+
+        $pullRequest = Invoke-RestMethod `
+          -Headers $headers `
+          -Uri "https://api.github.com/repos/${env:GITHUB_REPOSITORY}/pulls/${env:PULL_REQUEST_NUMBER}"
+
+        if ($pullRequest.head.sha -ne ${env:EXPECTED_HEAD_SHA}) {
+          Write-Error "The pull request head changed from ${env:EXPECTED_HEAD_SHA} to $($pullRequest.head.sha). Re-run the workflow and approve the latest commit."
+          exit 1
+        }
+
+    # The workflow uses persist-credentials: false to prevent credential theft.
     - name: Checkout code
       uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:

@@ -2,10 +2,11 @@ name: Integration Build OpenTelemetry.Exporter.OneCollector
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 on:
   pull_request_target: # zizmor: ignore[dangerous-triggers] Code is gated on maintainer approval for forks
@@ -49,5 +50,7 @@ jobs:
       test-filter: OneCollectorIntegrationTests
       env-var-name: OTEL_ONECOLLECTOR_INSTRUMENTATION_KEY
       checkout-ref: ${{ github.event.pull_request.merge_commit_sha || github.event.pull_request.head.sha }}
+      expected-head-sha: ${{ github.event.pull_request.head.sha }}
+      pull-request-number: ${{ github.event.pull_request.number }}
     secrets:
       instrumentation-key: ${{ secrets.OTEL_ONECOLLECTOR_INSTRUMENTATION_KEY }}
